@@ -5,6 +5,7 @@ namespace gui {
     void Update();
     bool ExitRequested();
     
+    void InitMenu();
     void ToggleMenu();
 
     void DrawGUI(HDC hdc);
