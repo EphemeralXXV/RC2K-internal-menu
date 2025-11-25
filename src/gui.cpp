@@ -67,6 +67,24 @@ void gui::InitMenu() {
         MessageBoxW(nullptr, L"Button clicked!", L"Info", MB_OK);
     };
     menuUI->AddChild(btn);
+
+    auto lbl = std::make_shared<Label>(L"Sample text");
+    lbl->SetPosSize(10, 30, 120, 18);
+    menuUI->AddChild(lbl);
+
+    auto cb = std::make_shared<Checkbox>(L"Enable option");
+    cb->SetPosSize(10, 80, 150, 20);
+    cb->onToggle = [](bool state) {
+        OutputDebugString(state ? "[+] Checked\n" : "[-] Unchecked\n");
+    };
+    menuUI->AddChild(cb);
+
+    auto slider = std::make_shared<Slider>(L"Slider value:", 0.0f, 100.0f, 1.0f, 50.0f);
+    slider->SetPosSize(10, 120, 150, 20);
+    slider->onValueChanged = [](float val) {
+        OutputDebugStringA(("Slider value: " + std::to_string(val) + "\n").c_str());
+    };
+    menuUI->AddChild(slider);
 }
 
 void gui::ToggleMenu() {
