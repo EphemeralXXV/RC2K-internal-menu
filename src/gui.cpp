@@ -56,35 +56,41 @@ void gui::Init() {
 void gui::InitMenu() {
     if(menuUI) return;
 
+    // Configure the menu itself
     menuUI = std::make_shared<Menu>();
     menuUI->SetPosSize(10, 10, 300, 200);
     menuUI->drawBackground = true;
     menuUI->visible = isMenuVisible;
 
+    // Create children widgets
     auto btn = std::make_shared<Button>(L"Click me!");
-    btn->SetPosSize(20, 50, 120, 26);
     btn->onClick = []() {
         MessageBoxW(nullptr, L"Button clicked!", L"Info", MB_OK);
     };
-    menuUI->AddChild(btn);
+    btn->SetPreferredSize(120, 26);
 
     auto lbl = std::make_shared<Label>(L"Sample text");
-    lbl->SetPosSize(10, 30, 120, 18);
-    menuUI->AddChild(lbl);
+    lbl->SetPreferredSize(120, 18);
 
     auto cb = std::make_shared<Checkbox>(L"Enable option");
-    cb->SetPosSize(10, 80, 150, 20);
     cb->onToggle = [](bool state) {
         OutputDebugString(state ? "[+] Checked\n" : "[-] Unchecked\n");
     };
-    menuUI->AddChild(cb);
+    cb->SetPreferredSize(150, 20);
 
     auto slider = std::make_shared<Slider>(L"Slider value:", 0.0f, 100.0f, 1.0f, 50.0f);
-    slider->SetPosSize(10, 120, 150, 20);
     slider->onValueChanged = [](float val) {
         OutputDebugStringA(("Slider value: " + std::to_string(val) + "\n").c_str());
     };
-    menuUI->AddChild(slider);
+    slider->SetPreferredSize(150, 20);
+
+    // Apply layout to menu and its children
+    menuUI->BeginLayout(10, 10);
+        menuUI->AddChildWithLayout(btn);
+        menuUI->AddChildWithLayout(lbl);
+        menuUI->AddChildWithLayout(cb);
+        menuUI->AddChildWithLayout(slider);
+    menuUI->EndLayout();
 }
 
 void gui::ToggleMenu() {

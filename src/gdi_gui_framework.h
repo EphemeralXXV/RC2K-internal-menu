@@ -18,6 +18,16 @@ struct Color {
     static Color FromARGB(BYTE a, BYTE r, BYTE g, BYTE b) { return {a, r, g, b}; }
 };
 
+
+
+// --- LAYOUTS ------------------------------------------------------------
+struct LayoutContext {
+    int cursorX = 0;
+    int cursorY = 0;
+    int spacingY = 4;   // vertical gap between widgets
+};
+
+// --- WIDGETS -------------------------------------------------------------
 // --- Forward declarations ------------------------------------------------
 struct Widget;
 using WidgetPtr = std::shared_ptr<Widget>;
@@ -32,6 +42,8 @@ struct Widget {
     int y = 0;
     int width = 0;
     int height = 0;
+    int preferredWidth = 0;
+    int preferredHeight = 0;
 
     // Widget states
     bool visible = true;
@@ -72,6 +84,15 @@ struct Widget {
         UpdateConvenienceGeometry();
         UpdateInternalLayout();
     }
+
+    // Set width and height as assumed by the user (excludes paddings, margins, labels, etc.)
+    void SetPreferredSize(int w, int h) {
+        preferredWidth = w;
+        preferredHeight = h;
+        UpdateInternalLayout();
+    }
+    int GetLayoutWidth() const { return preferredWidth > 0 ? preferredWidth : width; }
+    int GetLayoutHeight() const { return preferredHeight > 0 ? preferredHeight : height; }
     
     // --- Mouse event handlers -----------------------------------------------------
     // Test if cursor currently over widget
@@ -152,6 +173,32 @@ struct Menu : public Widget {
         // Propagate to child widgets if needed
         for(auto& c : children)
             c->UpdateInternalLayout();
+    }
+
+    // --- Layout - should move to generic container struct once it exists ---
+    LayoutContext currentLayout;
+
+    void BeginLayout(int startX, int startY) {
+        currentLayout.cursorX = startX;
+        currentLayout.cursorY = startY + titleBarHeight; // Start in the proper menu area, under the title bar
+    }
+
+    void EndLayout() {
+        // nothing for now; placeholder if we want groups later
+    }
+
+    // Place child widget in vertical layout
+    void ApplyLayout(Widget* w) {
+        int lWidth = w->GetLayoutWidth();
+        int lHeight = w->GetLayoutHeight();
+        w->SetPosSize(currentLayout.cursorX, currentLayout.cursorY, lWidth, lHeight);
+        currentLayout.cursorY += lHeight + currentLayout.spacingY;
+    }
+
+    // AddChild wrapper for containers with layout -- SoC preservation just in case
+    auto AddChildWithLayout(const WidgetPtr& child) {
+        AddChild(child);
+        ApplyLayout(child.get());
     }
 
     // --- Rendering ---------------------------------------------------------
@@ -440,8 +487,12 @@ struct Slider : public Widget {
 
     std::wstring label;
     bool showValue = true;
+    bool showLabel = true;
 
     int handleWidth = 10;
+
+    // Internal offset for drawing text above the track
+    int sliderOffsetY = 0;
 
     Color trackColor = Color::FromRGB(100, 100, 100);
     Color handleColor = Color::FromRGB(180, 180, 180);
@@ -460,8 +511,21 @@ struct Slider : public Widget {
         // Current handle position as a fraction of the whole slider
         float t = (value - minValue) / (maxValue - minValue);
         int x = AbsX() + int(t * (width - handleWidth));
-        int y = AbsY();
-        return RECT{x, y, x + handleWidth, y + height};
+        int y = AbsY() + sliderOffsetY;
+        return RECT{x, y, x + handleWidth, y + preferredHeight};
+    }
+
+    void ComputeSliderOffsetY(HDC hdc) {
+        if(!(showLabel || showValue)) {
+            sliderOffsetY = 0;
+            return;
+        }
+        HFONT oldFont = (HFONT)SelectObject(hdc, (HFONT)GetStockObject(DEFAULT_GUI_FONT));
+        TEXTMETRIC tm;
+        GetTextMetrics(hdc, &tm);
+        int textHeight = tm.tmHeight;
+        sliderOffsetY = textHeight + 2; // 2px padding
+        SelectObject(hdc, oldFont);
     }
 
     void Render(HDC hdc) override {
@@ -469,8 +533,16 @@ struct Slider : public Widget {
 
         int saved = SaveDC(hdc);
 
+        // Compute text offset if needed
+        ComputeSliderOffsetY(hdc);
+
         // Track
-        RECT track = {AbsX(), AbsY() + height/2 - 2, AbsX() + width, AbsY() + height/2 + 2};
+        RECT track = {
+            AbsX(),
+            AbsY() + sliderOffsetY + preferredHeight/2 - 2,
+            AbsX() + width,
+            AbsY() + sliderOffsetY + preferredHeight/2 + 2
+        };
         HBRUSH br = CreateSolidBrush(trackColor.toCOLORREF());
         FillRect(hdc, &track, br);
         DeleteObject(br);
@@ -492,25 +564,20 @@ struct Slider : public Widget {
         FillRect(hdc, &hr, br);
         DeleteObject(br);
 
-        // Compute the top text rect (one line above)
+        // Add labels above slider
         HFONT oldFont = (HFONT)SelectObject(hdc, (HFONT)GetStockObject(DEFAULT_GUI_FONT));
-        TEXTMETRIC tm;
-        GetTextMetrics(hdc, &tm);
-        int textHeight = tm.tmHeight;
-
-        RECT absRect = AbsRect();
-        RECT top = { absRect.left, absRect.top - textHeight - 2, absRect.right, absRect.top};
+        RECT textRect = { AbsX(), AbsY(), AbsX() + width, AbsY() + sliderOffsetY};
 
         // Left-aligned label
-        DrawTextW(hdc, label.c_str(), -1, &top, DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+        DrawTextW(hdc, label.c_str(), -1, &textRect, DT_LEFT | DT_SINGLELINE | DT_VCENTER);
 
         // Right-aligned numeric value
         if(showValue) {
             std::wstring val = std::to_wstring((int)value);
-            DrawTextW(hdc, val.c_str(), -1, &top, DT_RIGHT | DT_SINGLELINE | DT_VCENTER);
+            DrawTextW(hdc, val.c_str(), -1, &textRect, DT_RIGHT | DT_SINGLELINE | DT_VCENTER);
         }
-
         SelectObject(hdc, oldFont);
+
         RestoreDC(hdc, saved);
     }
 
@@ -542,7 +609,12 @@ struct Slider : public Widget {
     void OnMouseDown(POINT p) override {
         if(!enabled) return;
 
-        if(!MouseInRect(p)) return; // React also to clicks on the track itself
+        // React also to clicks on the track itself
+        RECT trackRect = HandleRect();
+        trackRect.left = AbsX();
+        trackRect.right = AbsX() + width;
+        if(!PtInRect(&trackRect, p)) return;
+
         isDragging = true;
         UpdateValueFromMouse(p.x);
     }
