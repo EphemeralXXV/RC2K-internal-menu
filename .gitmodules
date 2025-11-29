@@ -1,0 +1,3 @@
+[submodule "ext/GDIKit"]
+	path = ext/GDIKit
+	url = https://github.com/EphemeralXXV/GDIKit.git
