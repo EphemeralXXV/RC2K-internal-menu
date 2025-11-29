@@ -9,19 +9,18 @@
                 "-m32",                        // <<< THIS forces 32-bit mode
                 "-shared", "-o", "${workspaceFolder}/build/render.dll",
 
-                "${workspaceFolder}/src/gui.cpp",
-
                 "-I", "${workspaceFolder}/src",
-                "-I", "${workspaceFolder}/src/ui/core",
-                "-I", "${workspaceFolder}/src/ui/widgets",
-                "-I", "${workspaceFolder}/src/ui/widgets/containers",
+                "-I", "${workspaceFolder}/ext/GDIKit/src/ui/core",
+                "-I", "${workspaceFolder}/ext/GDIKit/src/ui/widgets",
+                "-I", "${workspaceFolder}/ext/GDIKit/src/ui/widgets/containers",
 
-                "${workspaceFolder}/src/ui/core/Widget.cpp",
-                "${workspaceFolder}/src/ui/widgets/Button.cpp",
-                "${workspaceFolder}/src/ui/widgets/Checkbox.cpp",
-                "${workspaceFolder}/src/ui/widgets/Label.cpp",
-                "${workspaceFolder}/src/ui/widgets/Slider.cpp",
-                "${workspaceFolder}/src/ui/widgets/containers/Menu.cpp",
+                "${workspaceFolder}/src/gui.cpp",
+                "${workspaceFolder}/ext/GDIKit/src/ui/core/Widget.cpp",
+                "${workspaceFolder}/ext/GDIKit/src/ui/widgets/Button.cpp",
+                "${workspaceFolder}/ext/GDIKit/src/ui/widgets/Checkbox.cpp",
+                "${workspaceFolder}/ext/GDIKit/src/ui/widgets/Label.cpp",
+                "${workspaceFolder}/ext/GDIKit/src/ui/widgets/Slider.cpp",
+                "${workspaceFolder}/ext/GDIKit/src/ui/widgets/containers/Menu.cpp",
 
                 "-static-libgcc",
                 "-static-libstdc++",

@@ -4,9 +4,9 @@
         "name": "Windows",
         "includePath": [
           "${workspaceFolder}/src",
-          "${workspaceFolder}/src/ui/core",
-          "${workspaceFolder}/src/ui/widgets",
-          "${workspaceFolder}/src/ui/widgets/containers"
+          "${workspaceFolder}/ext/GDIKit/src/ui/core",
+          "${workspaceFolder}/ext/GDIKit/src/ui/widgets",
+          "${workspaceFolder}/ext/GDIKit/src/ui/widgets/containers"
         ],
         "defines": [],
         "compilerPath": "C:/msys64/ucrt64/bin/g++",
