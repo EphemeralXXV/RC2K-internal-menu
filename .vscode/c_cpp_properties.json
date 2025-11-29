@@ -3,7 +3,10 @@
       {
         "name": "Windows",
         "includePath": [
-          "${workspaceFolder}/src"
+          "${workspaceFolder}/src",
+          "${workspaceFolder}/src/ui/core",
+          "${workspaceFolder}/src/ui/widgets",
+          "${workspaceFolder}/src/ui/widgets/containers"
         ],
         "defines": [],
         "compilerPath": "C:/msys64/ucrt64/bin/g++",

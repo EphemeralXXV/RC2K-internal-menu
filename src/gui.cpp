@@ -4,7 +4,11 @@
 
 #include "gui.h"
 #include "render_interface.h"
-#include "gdi_gui_framework.h"
+#include "Menu.h"
+#include "Button.h"
+#include "Label.h"
+#include "Checkbox.h"
+#include "Slider.h"
 
 // API to expose to DDrawLoader
 static RenderPluginAPI pluginAPI = {
@@ -57,7 +61,7 @@ void gui::InitMenu() {
     if(menuUI) return;
 
     // Configure the menu itself
-    menuUI = std::make_shared<Menu>();
+    menuUI = std::make_shared<Menu>(L"Menu");
     menuUI->SetPosSize(10, 10, 300, 200);
     menuUI->drawBackground = true;
     menuUI->visible = isMenuVisible;

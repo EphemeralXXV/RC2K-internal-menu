@@ -11,6 +11,18 @@
 
                 "${workspaceFolder}/src/gui.cpp",
 
+                "-I", "${workspaceFolder}/src",
+                "-I", "${workspaceFolder}/src/ui/core",
+                "-I", "${workspaceFolder}/src/ui/widgets",
+                "-I", "${workspaceFolder}/src/ui/widgets/containers",
+
+                "${workspaceFolder}/src/ui/core/Widget.cpp",
+                "${workspaceFolder}/src/ui/widgets/Button.cpp",
+                "${workspaceFolder}/src/ui/widgets/Checkbox.cpp",
+                "${workspaceFolder}/src/ui/widgets/Label.cpp",
+                "${workspaceFolder}/src/ui/widgets/Slider.cpp",
+                "${workspaceFolder}/src/ui/widgets/containers/Menu.cpp",
+
                 "-static-libgcc",
                 "-static-libstdc++",
                 "-lgdi32"
