@@ -18,8 +18,6 @@ struct Color {
     static Color FromARGB(BYTE a, BYTE r, BYTE g, BYTE b) { return {a, r, g, b}; }
 };
 
-
-
 // --- LAYOUTS ------------------------------------------------------------
 struct LayoutContext {
     int cursorX = 0;
@@ -125,7 +123,11 @@ struct Menu : public Widget {
     // Window state
     bool isCollapsed = false;
     bool isDragging = false;
+    bool isResizing = false;
     POINT dragOffset = {0,0};
+    POINT resizeOffset = {0, 0};
+
+    int resizeHandleSize = 10; // 10x10 px square in the bottom-right corner
 
     // Title bar
     std::wstring title = L"Menu";
@@ -135,10 +137,53 @@ struct Menu : public Widget {
     // Appearance
     Color background = Color::FromARGB(180, 0, 0, 0);
     bool drawBackground = false;
+    bool clipChildren = true; // Basically overflow: hidden
 
     // Constructor
     Menu() {
         InitInternalElements();
+    }
+
+    // Resize handle in the bottom-right of the menu
+    RECT ResizeHandleRect() const {
+        return RECT{
+            AbsX() + width - resizeHandleSize,
+            AbsY() + height - resizeHandleSize,
+            AbsX() + width,
+            AbsY() + height
+        };
+    }
+    void RenderResizeHandle(HDC hdc) const { // Classic triangle-like diagonal lines
+        const int lineCount = 3;
+        const int spacing = 3;
+        const int cornerPadding = 2; // Distance from the corner
+
+        HPEN pen = CreatePen(PS_SOLID, 1, RGB(180,180,180));
+        HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+
+        // RECT for the diagonal lines (going from top-left to bottom-right)
+        // Subtract cornerPadding only in y1 and x1 so as to preserve the hitbox
+        int x0 = AbsX() + width - resizeHandleSize;
+        int y0 = AbsY() + height - resizeHandleSize;
+        int x1 = AbsX() + width - cornerPadding;
+        int y1 = AbsY() + height - cornerPadding;
+
+        for(int i = 0; i < lineCount; ++i) {
+            int offset = i * spacing;
+
+            // Clamp the lines so they don't go past the corner
+            int startX  = std::min(x0 + offset, AbsX() + width);
+            int startY  = y1;
+            int endX    = x1;
+            int endY    = std::min(y0 + offset, AbsY() + height);
+
+            // Have to subtract 1 from Y because of MoveToEx/LineTo shenanigans
+            MoveToEx(hdc, startX, startY - 1, nullptr);
+            LineTo(hdc, endX, endY - 1);
+        }
+
+        SelectObject(hdc, oldPen);
+        DeleteObject(pen);
     }
 
     // --- Child management --------------------------------------------------
@@ -246,6 +291,15 @@ struct Menu : public Widget {
             DeleteObject(br);
         }
 
+        // Draw resize handle
+        RenderResizeHandle(hdc);
+
+        // Clip children to menu bounds if overflow is hidden
+        if(clipChildren) {
+            RECT absRect = AbsRect();
+            IntersectClipRect(hdc, absRect.left, absRect.top + titleBarHeight, absRect.right, absRect.bottom);
+        }
+
         // Render children in order (if menu is expanded)
         if(!isCollapsed) {
             for(auto &c : children) {
@@ -258,7 +312,16 @@ struct Menu : public Widget {
 
     // --- Event forwarding --------------------------------------------------
     void OnMouseDown(POINT p) override {
-        if(!visible) return;
+        if(!visible || !MouseInRect(p)) return;
+
+        // Resizing via bottom-right handle
+        RECT resizeHandleRect = ResizeHandleRect();
+        if(PtInRect(&resizeHandleRect, p)) {
+            isResizing = true;
+            resizeOffset.x = AbsRight() - p.x;
+            resizeOffset.y = AbsBottom() - p.y;
+            return;
+        }
 
         // Dragging via title bar
         RECT titleBarRect = titleBar->AbsRect();
@@ -293,6 +356,16 @@ struct Menu : public Widget {
     void OnMouseMove(POINT p) override {
         if(!visible) return;
 
+        if(isResizing) {
+            int newWidth = p.x - AbsX() + resizeOffset.x;
+            int newHeight = p.y - AbsY() + resizeOffset.y;
+
+            width = std::max(newWidth, 50);   // minimum width safeguard
+            height = std::max(newHeight, 50); // minimum height safeguard
+            UpdateInternalLayout();
+            return;
+        }
+
         if(isDragging) {
             SetPosSize(p.x - dragOffset.x, p.y - dragOffset.y, width, height);
             return;
@@ -308,6 +381,7 @@ struct Menu : public Widget {
     void OnMouseUp(POINT p) override {
         if(!visible) return;
         isDragging = false;
+        isResizing = false;
 
         // Forward to children
         if(!isCollapsed) {
@@ -555,7 +629,8 @@ struct Slider : public Widget {
         POINT p;
         GetCursorPos(&p);
         if(PtInRect(&hr, p)) { // Handle hovered
-            handleCol = hoverColor;
+            if(parent && parent->MouseInRect(p)) // Only if slider doesn't overflow its container
+                handleCol = hoverColor;
         }
         if(isDragging) { // Dragging takes precendence over hovering
             handleCol = dragColor;
