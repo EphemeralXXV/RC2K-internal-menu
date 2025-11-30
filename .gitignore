@@ -1,6 +1,7 @@
 # Folders
 gitignore/
 build/
+.vscode/
 
 # Prerequisites
 *.d
