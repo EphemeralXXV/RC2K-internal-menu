@@ -68,24 +68,24 @@ void gui::InitMenu() {
 
     // Create children widgets
     auto btn = std::make_shared<Button>(L"Click me!");
-    btn->onClick = []() {
-        MessageBoxW(nullptr, L"Button clicked!", L"Info", MB_OK);
-    };
+    btn->SetOnClick([]() {
+        // MessageBoxW(nullptr, L"Button clicked!", L"Info", MB_OK);
+    });
     btn->SetPreferredSize(120, 26);
 
     auto lbl = std::make_shared<Label>(L"Sample text");
     lbl->SetPreferredSize(120, 18);
 
     auto cb = std::make_shared<Checkbox>(L"Enable option");
-    cb->onToggle = [](bool state) {
-        OutputDebugString(state ? "[+] Checked\n" : "[-] Unchecked\n");
-    };
+    cb->SetOnToggle([](bool state) {
+        OutputDebugStringA(state ? "[+] Checked\n" : "[-] Unchecked\n");
+    });
     cb->SetPreferredSize(150, 20);
 
     auto slider = std::make_shared<Slider>(L"Slider value:", 0.0f, 100.0f, 1.0f, 50.0f);
-    slider->onValueChanged = [](float val) {
+    slider->SetOnValueChanged([](float val) {
         OutputDebugStringA(("Slider value: " + std::to_string(val) + "\n").c_str());
-    };
+    });
     slider->SetPreferredSize(150, 20);
 
     // Apply layout to menu and its children
@@ -120,44 +120,28 @@ void gui::DrawMenu(HDC hdc) {
     menuUI->Render(hdc);
 }
 
-static void PollMouseAndFeed(
-    POINT pt,
-    bool handleRightAndMiddle = false
-) {
+static void PollMouseAndFeed(POINT pt) {
     // Persistent previous-button state (per-process static so it survives across frames)
     static bool wasLeftDown = false;
     static bool wasRightDown = false;
     static bool wasMiddleDown = false;
 
     // Feed hover (every frame)
-    menuUI->OnMouseMove(pt);
+    menuUI->FeedMouseEvent({ MouseEventType::Move, pt, 1 });
 
     // Edge-detect buttons (GetAsyncKeyState high bit = currently down)
     SHORT leftState = GetAsyncKeyState(VK_LBUTTON);
     bool leftDown = (leftState & 0x8000) != 0;
     if(leftDown && !wasLeftDown) {
         // Transition: up -> down
-        menuUI->OnMouseDown(pt);
+        menuUI->FeedMouseEvent({ MouseEventType::Down, pt, 1 });
     }
-    else if (!leftDown && wasLeftDown) {
+    else if(!leftDown && wasLeftDown) {
         // Transition: down -> up
-        menuUI->OnMouseUp(pt);
+        menuUI->FeedMouseEvent({ MouseEventType::Up, pt, 1 });
+        menuUI->FeedMouseEvent({ MouseEventType::Click, pt, 1 });
     }
     wasLeftDown = leftDown;
-
-    if(handleRightAndMiddle) {
-        SHORT rightState = GetAsyncKeyState(VK_RBUTTON);
-        bool rightDown = (rightState & 0x8000) != 0;
-        if (rightDown && !wasRightDown) menuUI->OnMouseDown(pt); // widgets can inspect which button if needed
-        else if (!rightDown && wasRightDown) menuUI->OnMouseUp(pt);
-        wasRightDown = rightDown;
-
-        SHORT midState = GetAsyncKeyState(VK_MBUTTON);
-        bool midDown = (midState & 0x8000) != 0;
-        if (midDown && !wasMiddleDown) menuUI->OnMouseDown(pt);
-        else if (!midDown && wasMiddleDown) menuUI->OnMouseUp(pt);
-        wasMiddleDown = midDown;
-    }
 }
 
 // Draw mouse cursor to operate the menu 
