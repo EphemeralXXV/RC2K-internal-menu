@@ -63,8 +63,8 @@ void gui::InitMenu() {
     // Configure the menu itself
     menuUI = std::make_shared<Menu>(L"Menu");
     menuUI->SetPosSize(10, 10, 300, 200);
-    menuUI->drawBackground = true;
-    menuUI->visible = isMenuVisible;
+    menuUI->SetDrawBackground(true);
+    menuUI->SetVisible(isMenuVisible);
 
     // Create children widgets
     auto btn = std::make_shared<Button>(L"Click me!");
@@ -99,8 +99,8 @@ void gui::InitMenu() {
 
 void gui::ToggleMenu() {
     if(menuUI) {
-        menuUI->visible = !menuUI->visible;
-        isMenuVisible = menuUI->visible;
+        menuUI->SetVisible(!menuUI->IsVisible());
+        isMenuVisible = menuUI->IsVisible();
     }
 
     OutputDebugStringA("[+] Menu toggled!\n");
