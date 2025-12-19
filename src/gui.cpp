@@ -4,7 +4,9 @@
 
 #include "gui.h"
 #include "render_interface.h"
+
 #include "Menu.h"
+#include "VerticalLayout.h"
 #include "Button.h"
 #include "Label.h"
 #include "Checkbox.h"
@@ -63,7 +65,6 @@ void gui::InitMenu() {
     // Configure the menu itself
     menuUI = std::make_shared<Menu>(L"Menu");
     menuUI->SetPosSize(10, 10, 300, 200);
-    menuUI->SetDrawBackground(true);
     menuUI->SetVisible(isMenuVisible);
 
     // Create children widgets
@@ -89,12 +90,12 @@ void gui::InitMenu() {
     slider->SetPreferredSize(150, 20);
 
     // Apply layout to menu and its children
-    menuUI->BeginLayout(10, 10);
-        menuUI->AddChildWithLayout(btn);
-        menuUI->AddChildWithLayout(lbl);
-        menuUI->AddChildWithLayout(cb);
-        menuUI->AddChildWithLayout(slider);
-    menuUI->EndLayout();
+    auto mainLayout = std::make_unique<VerticalLayout>(4);
+    menuUI->SetBodyLayout(std::move(mainLayout));
+    menuUI->AddBodyChild(btn);
+    menuUI->AddBodyChild(lbl);
+    menuUI->AddBodyChild(cb);
+    menuUI->AddBodyChild(slider);
 }
 
 void gui::ToggleMenu() {
