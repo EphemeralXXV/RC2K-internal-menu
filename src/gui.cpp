@@ -5,12 +5,15 @@
 #include "gui.h"
 #include "render_interface.h"
 
+// GDIKit
+#include "Root.h"
 #include "Menu.h"
 #include "VerticalLayout.h"
 #include "Button.h"
 #include "Label.h"
 #include "Checkbox.h"
 #include "Slider.h"
+#include "Select.h"
 
 // API to expose to DDrawLoader
 static RenderPluginAPI pluginAPI = {
@@ -47,100 +50,123 @@ bool gui::ExitRequested() {
 // Cursor loaded from system
 static HCURSOR hCursor = nullptr;
 
-// Initialize the global menu state (menu hidden by default)
-static bool isMenuVisible = false;
-
 // Initialize shared menu UI pointer
-static std::shared_ptr<Menu> menuUI;
+static std::weak_ptr<Menu> menuRef;
 
 void gui::Init() {
     hCursor = LoadCursor(NULL, IDC_ARROW);
+
+    // Create root container for the GUI
+    RECT winRect;
+    GetClientRect(GetForegroundWindow(), &winRect);
+    Root::Create(winRect.right, winRect.bottom);
+    if(!Root::Get()) {
+        OutputDebugStringA("[-] Failed to create root container!\n");
+        return;
+    }
+
     InitMenu();
     OutputDebugStringA("[+] GUI initialized\n");
 }
 
 void gui::InitMenu() {
-    if(menuUI) return;
+    auto root = Root::Get();
+    if(!root) return;
+    if(menuRef.lock()) return;
 
     // Configure the menu itself
-    menuUI = std::make_shared<Menu>(L"Menu");
-    menuUI->SetPosSize(10, 10, 300, 200);
-    menuUI->SetVisible(isMenuVisible);
+    auto menu = std::make_shared<Menu>(L"Menu");
+    menu->SetPosSize(40, 40, 300, 300);
+    menu->SetDisplayed(false);
+    root->AddChild(menu);
+    menuRef = menu;
 
     // Create children widgets
     auto btn = std::make_shared<Button>(L"Click me!");
     btn->SetOnClick([]() {
-        // MessageBoxW(nullptr, L"Button clicked!", L"Info", MB_OK);
+        OutputDebugStringA("Button clicked!");
     });
-    btn->SetPreferredSize(120, 26);
+    btn->SetSize(120, 26);
 
     auto lbl = std::make_shared<Label>(L"Sample text");
-    lbl->SetPreferredSize(120, 18);
+    lbl->SetSize(120, 20);
 
     auto cb = std::make_shared<Checkbox>(L"Enable option");
     cb->SetOnToggle([](bool state) {
         OutputDebugStringA(state ? "[+] Checked\n" : "[-] Unchecked\n");
     });
-    cb->SetPreferredSize(150, 20);
+    cb->SetSize(150, 20);
 
     auto slider = std::make_shared<Slider>(L"Slider value:", 0.0f, 100.0f, 1.0f, 50.0f);
     slider->SetOnValueChanged([](float val) {
         OutputDebugStringA(("Slider value: " + std::to_string(val) + "\n").c_str());
     });
-    slider->SetPreferredSize(150, 20);
+    slider->SetSize(150, 35);
+
+    auto select = std::make_shared<Select>();
+    std::vector<Select::SelectItemPtr> options;
+    options.push_back(std::make_shared<SelectItem>(L"Option 1", 0));
+    options.push_back(std::make_shared<SelectItem>(L"Option 2", 1));
+    options.push_back(std::make_shared<SelectItem>(L"Option 3", 2));
+    select->SetItems(options);
+    select->SetSize(150, 24);  // width x height of closed select box
 
     // Apply layout to menu and its children
     auto mainLayout = std::make_unique<VerticalLayout>(4);
-    menuUI->SetBodyLayout(std::move(mainLayout));
-    menuUI->AddBodyChild(btn);
-    menuUI->AddBodyChild(lbl);
-    menuUI->AddBodyChild(cb);
-    menuUI->AddBodyChild(slider);
+    menu->SetBodyLayout(std::move(mainLayout));
+    menu->AddBodyChild(btn);
+    menu->AddBodyChild(lbl);
+    menu->AddBodyChild(cb);
+    menu->AddBodyChild(slider);
+    menu->AddBodyChild(select);
 }
 
 void gui::ToggleMenu() {
-    if(menuUI) {
-        menuUI->SetVisible(!menuUI->IsVisible());
-        isMenuVisible = menuUI->IsVisible();
-    }
+    auto menu = menuRef.lock();
+    if(!menu) return;
+
+    menu->SetDisplayed(!menu->IsDisplayed());
 
     OutputDebugStringA("[+] Menu toggled!\n");
 }
 
 void gui::DrawGUI(HDC hdc) {
-    if(isMenuVisible) {
-        // Order is important - the last thing is drawn on top
-        // (and we want the cursor to be above everything else)
-        DrawMenu(hdc);
-        DrawCursor(hdc);
-    }
-}
+    auto root = Root::Get();
+    if(!root) return;
 
-void gui::DrawMenu(HDC hdc) {
-    if(!menuUI) return;
-    menuUI->Render(hdc);
+    // Order is important - the last thing is drawn on top
+    // (and we want the cursor to be above everything else)
+    root->Render(hdc);
+
+    auto menu = menuRef.lock();
+    if(!menu) return;
+    if(!menu->IsDisplayed()) return;
+
+    // Draw cursor only if Menu is enabled
+    DrawCursor(hdc);
 }
 
 static void PollMouseAndFeed(POINT pt) {
+    auto root = Root::Get();
+    if(!root) return;
+
     // Persistent previous-button state (per-process static so it survives across frames)
     static bool wasLeftDown = false;
-    static bool wasRightDown = false;
-    static bool wasMiddleDown = false;
 
     // Feed hover (every frame)
-    menuUI->FeedMouseEvent({ MouseEventType::Move, pt, 1 });
+    root->FeedMouseEvent({ MouseEventType::Move, pt, MouseButton::Left });
 
     // Edge-detect buttons (GetAsyncKeyState high bit = currently down)
     SHORT leftState = GetAsyncKeyState(VK_LBUTTON);
     bool leftDown = (leftState & 0x8000) != 0;
     if(leftDown && !wasLeftDown) {
         // Transition: up -> down
-        menuUI->FeedMouseEvent({ MouseEventType::Down, pt, 1 });
+        root->FeedMouseEvent({ MouseEventType::Down, pt, MouseButton::Left });
     }
     else if(!leftDown && wasLeftDown) {
         // Transition: down -> up
-        menuUI->FeedMouseEvent({ MouseEventType::Up, pt, 1 });
-        menuUI->FeedMouseEvent({ MouseEventType::Click, pt, 1 });
+        root->FeedMouseEvent({ MouseEventType::Up, pt, MouseButton::Left });
+        root->FeedMouseEvent({ MouseEventType::Click, pt, MouseButton::Left });
     }
     wasLeftDown = leftDown;
 }
