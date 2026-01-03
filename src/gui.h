@@ -9,6 +9,5 @@ namespace gui {
     void ToggleMenu();
 
     void DrawGUI(HDC hdc);
-    void DrawMenu(HDC hdc);
     void DrawCursor(HDC hdc);
 }

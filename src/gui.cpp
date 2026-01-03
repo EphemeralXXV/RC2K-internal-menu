@@ -136,7 +136,7 @@ void gui::DrawGUI(HDC hdc) {
 
     // Order is important - the last thing is drawn on top
     // (and we want the cursor to be above everything else)
-    root->Render(hdc);
+    root->InitRender(hdc);
 
     auto menu = menuRef.lock();
     if(!menu) return;
@@ -154,19 +154,19 @@ static void PollMouseAndFeed(POINT pt) {
     static bool wasLeftDown = false;
 
     // Feed hover (every frame)
-    root->FeedMouseEvent({ MouseEventType::Move, pt, MouseButton::Left });
+    root->InitFeedMouseEvent({ MouseEventType::Move, pt, MouseButton::Left });
 
     // Edge-detect buttons (GetAsyncKeyState high bit = currently down)
     SHORT leftState = GetAsyncKeyState(VK_LBUTTON);
     bool leftDown = (leftState & 0x8000) != 0;
     if(leftDown && !wasLeftDown) {
         // Transition: up -> down
-        root->FeedMouseEvent({ MouseEventType::Down, pt, MouseButton::Left });
+        root->InitFeedMouseEvent({ MouseEventType::Down, pt, MouseButton::Left });
     }
     else if(!leftDown && wasLeftDown) {
         // Transition: down -> up
-        root->FeedMouseEvent({ MouseEventType::Up, pt, MouseButton::Left });
-        root->FeedMouseEvent({ MouseEventType::Click, pt, MouseButton::Left });
+        root->InitFeedMouseEvent({ MouseEventType::Up, pt, MouseButton::Left });
+        root->InitFeedMouseEvent({ MouseEventType::Click, pt, MouseButton::Left });
     }
     wasLeftDown = leftDown;
 }
