@@ -5,15 +5,15 @@
 #include "gui.h"
 #include "render_interface.h"
 
+// Components
+#include "debug_menu.h"
+
 // GDIKit
 #include "Root.h"
 #include "Menu.h"
-#include "VerticalLayout.h"
-#include "Button.h"
-#include "Label.h"
-#include "Checkbox.h"
-#include "Slider.h"
-#include "Select.h"
+
+// Actions & game memory
+#include "actions.h"
 
 // API to expose to DDrawLoader
 static RenderPluginAPI pluginAPI = {
@@ -39,10 +39,11 @@ void gui::Update() {
     }
     if(GetAsyncKeyState(VK_END) & 1) {
         shouldExit = true;
+        actions::ResetAllEffects(); // Clean up any active effects before exiting
     }
 }
 
-// Getter for exit request state
+// Poll exit request state
 bool gui::ExitRequested() {
     return shouldExit;
 }
@@ -59,7 +60,7 @@ void gui::Init() {
     // Create root container for the GUI
     RECT winRect;
     GetClientRect(GetForegroundWindow(), &winRect);
-    Root::Create(winRect.right, winRect.bottom);
+    Root::Create(winRect.right - winRect.left, winRect.bottom - winRect.top);
     if(!Root::Get()) {
         OutputDebugStringA("[-] Failed to create root container!\n");
         return;
@@ -70,55 +71,9 @@ void gui::Init() {
 }
 
 void gui::InitMenu() {
-    auto root = Root::Get();
-    if(!root) return;
     if(menuRef.lock()) return;
-
-    // Configure the menu itself
-    auto menu = std::make_shared<Menu>(L"Menu");
-    menu->SetPosSize(40, 40, 300, 300);
-    menu->SetDisplayed(false);
-    root->AddChild(menu);
+    auto menu = BuildDebugMenu();
     menuRef = menu;
-
-    // Create children widgets
-    auto btn = std::make_shared<Button>(L"Click me!");
-    btn->SetOnClick([]() {
-        OutputDebugStringA("Button clicked!");
-    });
-    btn->SetSize(120, 26);
-
-    auto lbl = std::make_shared<Label>(L"Sample text");
-    lbl->SetSize(120, 20);
-
-    auto cb = std::make_shared<Checkbox>(L"Enable option");
-    cb->SetOnToggle([](bool state) {
-        OutputDebugStringA(state ? "[+] Checked\n" : "[-] Unchecked\n");
-    });
-    cb->SetSize(150, 20);
-
-    auto slider = std::make_shared<Slider>(L"Slider value:", 0.0f, 100.0f, 1.0f, 50.0f);
-    slider->SetOnValueChanged([](float val) {
-        OutputDebugStringA(("Slider value: " + std::to_string(val) + "\n").c_str());
-    });
-    slider->SetSize(150, 35);
-
-    auto select = std::make_shared<Select>();
-    std::vector<Select::SelectItemPtr> options;
-    options.push_back(std::make_shared<SelectItem>(L"Option 1", 0));
-    options.push_back(std::make_shared<SelectItem>(L"Option 2", 1));
-    options.push_back(std::make_shared<SelectItem>(L"Option 3", 2));
-    select->SetItems(options);
-    select->SetSize(150, 24);  // width x height of closed select box
-
-    // Apply layout to menu and its children
-    auto mainLayout = std::make_unique<VerticalLayout>(4);
-    menu->SetBodyLayout(std::move(mainLayout));
-    menu->AddBodyChild(btn);
-    menu->AddBodyChild(lbl);
-    menu->AddBodyChild(cb);
-    menu->AddBodyChild(slider);
-    menu->AddBodyChild(select);
 }
 
 void gui::ToggleMenu() {
@@ -133,6 +88,16 @@ void gui::ToggleMenu() {
 void gui::DrawGUI(HDC hdc) {
     auto root = Root::Get();
     if(!root) return;
+
+    // Update root size to match window size if necessary
+    RECT winRect;
+    GetClientRect(GetForegroundWindow(), &winRect);
+    if(root->GetWidth() != (winRect.right - winRect.left) ||
+       root->GetHeight() != (winRect.bottom - winRect.top)) {
+        root->SetSize(winRect.right - winRect.left, winRect.bottom - winRect.top);
+    }
+    OutputDebugStringA(("[+] Watermark x is " + std::to_string(root->GetWidth() - 100) + "\n").c_str());
+    OutputDebugStringA(("[+] Watermark y is " + std::to_string(root->GetHeight() - 20) + "\n").c_str());
 
     // Order is important - the last thing is drawn on top
     // (and we want the cursor to be above everything else)
