@@ -8,7 +8,13 @@ void actions::RepairCar() {
     }
     OutputDebugStringA("Car repaired.\n");
 }
-
+void actions::DestroyCar() {
+    for(const auto& [name, addr_damage] : gameMemory::ADDR_DAMAGE) {
+        OutputDebugStringA((name + " repaired.\n").c_str());
+        gameMemory::mem<float>(addr_damage) = 100.00f;
+    }
+    OutputDebugStringA("Car repaired.\n");
+}
 void actions::EnableInvincibility() {
     for(const auto& [name, addr_damage] : gameMemory::ADDR_DAMAGE) {
         floatFreezer.AddValue(addr_damage, 0.00f);
@@ -84,6 +90,11 @@ void actions::SpawnCheckpointSound() {
 void actions::SpawnLittleTimeRemainingSound() {
     gameMemory::mem<int>(gameMemory::ADDR_TRIGGER_LITTLE_TIME_REMAINING_SOUND) = 1;
     OutputDebugStringA("Little time remaining!\n");
+}
+
+void actions::SetGameOverFlag(bool set) {
+    gameMemory::mem<int>(gameMemory::ADDR_GAME_OVER_FLAG) = set;
+    OutputDebugStringA(("Game over flag set to " + std::to_string(set) + "!\n").c_str());
 }
 
 void actions::ResetAllEffects() {

@@ -17,29 +17,53 @@ std::shared_ptr<Menu> BuildDebugMenu() {
     if(!root) return nullptr;
 
     // Add watermark as an anti-cheat measure
-    auto watermark = std::make_shared<Label>(L"CrashBoard v1.1");
+    auto watermark = std::make_shared<Label>(L"CrashBoard Alpha v1.2");
     watermark->SetAnchor(Anchor::BottomRight);
-    watermark->SetPosSize(10, 10, 85, 20);
+    watermark->SetPosSize(10, 10, 120, 20);
     watermark->SetTextColor(Color::FromARGB(150, 255, 255, 255));
     root->AddChild(watermark);
 
     // Configure the menu itself
-    auto menu = std::make_shared<Menu>(L"CrashBoard v1.1");
+    auto menu = std::make_shared<Menu>(L"CrashBoard Alpha v1.2");
     menu->SetPosSize(40, 40, 300, 300);
     menu->SetBodyPadding(4, 4);
     menu->SetDisplayed(false);
     root->AddChild(menu);
 
     // Create children widgets
+    auto dmgContainer = std::make_shared<Container>();
+    dmgContainer->SetAutoWidth(true);
+    dmgContainer->SetAutoHeight(true);
+    auto dmgContainerLayout = std::make_unique<FlexLayout>(FlexDirection::Row, 4);
+    dmgContainerLayout->SetJustify(JustifyContent::Center);
+    dmgContainer->SetLayout(std::move(dmgContainerLayout));
     auto btnRepair = BuildMenuButton(L"Repair car", []() {
         actions::RepairCar();
     });
+    auto btnDestroy = BuildMenuButton(L"Destroy car", []() {
+        actions::DestroyCar();
+    });
+    dmgContainer->AddChild(btnRepair);
+    dmgContainer->AddChild(btnDestroy);
+
+    auto btnRetire = BuildMenuButton(L"Retire", []() {
+        actions::SetGameOverFlag(true);
+    });
+
+    auto sfxContainer = std::make_shared<Container>();
+    sfxContainer->SetAutoWidth(true);
+    sfxContainer->SetAutoHeight(true);
+    auto sfxContainerLayout = std::make_unique<FlexLayout>(FlexDirection::Row, 4);
+    sfxContainerLayout->SetJustify(JustifyContent::Center);
+    sfxContainer->SetLayout(std::move(sfxContainerLayout));
     auto btnCheck = BuildMenuButton(L"Play checkpoint sound", []() {
         actions::SpawnCheckpointSound();
     });
     auto btnBoom = BuildMenuButton(L"Play lightning sound", []() {
         actions::SpawnLightningSound();
     });
+    sfxContainer->AddChild(btnCheck);
+    sfxContainer->AddChild(btnBoom);
 
     auto cbInvincibility = std::make_shared<Checkbox>(L"Invincibility");
     cbInvincibility->SetOnToggle([](bool checked) {
@@ -67,7 +91,7 @@ std::shared_ptr<Menu> BuildDebugMenu() {
     /* Suspension height */
     auto suspensionHeightContainer = BuildMenuSliderContainer(
         L"Suspension Height:",
-        0, 255, 1, gameMemory::DEFAULT_SUSPENSION_HEIGHT,
+        0, 255, 1, gameMemory::DEFAULT_SUSPENSION_HEIGHT, // max value is actually MAX_INTEGER
         [](float val) {
             actions::SetSuspensionHeight(val);
         },
@@ -115,9 +139,9 @@ std::shared_ptr<Menu> BuildDebugMenu() {
     menu->SetBodyLayout(std::move(mainLayout));
 
     // Add children to menu
-    menu->AddBodyChild(btnCheck);
-    menu->AddBodyChild(btnBoom);
-    menu->AddBodyChild(btnRepair);
+    menu->AddBodyChild(sfxContainer);
+    menu->AddBodyChild(dmgContainer);
+    menu->AddBodyChild(btnRetire);
     menu->AddBodyChild(cbInvincibility);
     menu->AddBodyChild(gravityContainer);
     menu->AddBodyChild(suspensionHeightContainer);

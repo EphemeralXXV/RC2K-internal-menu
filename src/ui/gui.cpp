@@ -32,34 +32,45 @@ extern "C" __declspec(dllexport) RenderPluginAPI* GetRenderPlugin() {
 // Exit request state
 static std::atomic<bool> shouldExit = false;
 
-// Per-frame callback
-void gui::Update() {
-    if(GetAsyncKeyState(VK_HOME) & 1) { 
-        gui::ToggleMenu();
-    }
-    if(GetAsyncKeyState(VK_END) & 1) {
-        shouldExit = true;
-        actions::ResetAllEffects(); // Clean up any active effects before exiting
-    }
-}
-
-// Poll exit request state
-bool gui::ExitRequested() {
-    return shouldExit;
-}
-
 // Cursor loaded from system
 static HCURSOR hCursor = nullptr;
 
 // Initialize shared menu UI pointer
 static std::weak_ptr<Menu> menuRef;
 
+// Game window handle
+static HWND gGameWindow = nullptr;
+
+static HWND gui::GetGameWindow(){
+    // If cached window is still valid, use it
+    if(gGameWindow && IsWindow(gGameWindow)) {
+        OutputDebugStringA("[+] Using cached game window handle\n");
+        return gGameWindow;
+    }
+    // Try active window (correct for injected overlays)
+    HWND hwnd = GetActiveWindow();
+    if(hwnd && IsWindow(hwnd)) {
+        OutputDebugStringA("[+] Found active window handle\n");
+        gGameWindow = hwnd;
+        return gGameWindow;
+    }
+    // Fallback: foreground window (last resort)
+    hwnd = GetForegroundWindow();
+    if(hwnd && IsWindow(hwnd)) {
+        OutputDebugStringA("[+] Found foreground window handle\n");
+        // Don't cache this one, as it may change frequently -- active window is more reliable
+        return hwnd;
+    }
+
+    return nullptr;
+}
+
 void gui::Init() {
     hCursor = LoadCursor(NULL, IDC_ARROW);
 
     // Create root container for the GUI
     RECT winRect;
-    GetClientRect(GetForegroundWindow(), &winRect);
+    GetClientRect(GetGameWindow(), &winRect);
     Root::Create(winRect.right - winRect.left, winRect.bottom - winRect.top);
     if(!Root::Get()) {
         OutputDebugStringA("[-] Failed to create root container!\n");
@@ -91,14 +102,13 @@ void gui::DrawGUI(HDC hdc) {
 
     // Update root size to match window size if necessary
     RECT winRect;
-    GetClientRect(GetForegroundWindow(), &winRect);
-    if(root->GetWidth() != (winRect.right - winRect.left) ||
-       root->GetHeight() != (winRect.bottom - winRect.top)) {
-        root->SetSize(winRect.right - winRect.left, winRect.bottom - winRect.top);
+    GetClientRect(GetGameWindow(), &winRect);
+    int winWidth = winRect.right - winRect.left;
+    int winHeight = winRect.bottom - winRect.top;
+    if(root->GetWidth() != winWidth || root->GetHeight() != winHeight) {
+        root->SetSize(winWidth, winHeight);
     }
-    OutputDebugStringA(("[+] Watermark x is " + std::to_string(root->GetWidth() - 100) + "\n").c_str());
-    OutputDebugStringA(("[+] Watermark y is " + std::to_string(root->GetHeight() - 20) + "\n").c_str());
-
+    
     // Order is important - the last thing is drawn on top
     // (and we want the cursor to be above everything else)
     root->InitRender(hdc);
@@ -139,9 +149,9 @@ static void PollMouseAndFeed(POINT pt) {
 // Draw mouse cursor to operate the menu 
 void gui::DrawCursor(HDC hdc) {
     // Get the foremost window (including full-screen)
-    HWND hwnd = GetForegroundWindow();
+    HWND hwnd = GetGameWindow();
     if(!hwnd) {
-        OutputDebugStringA("[!] GetForegroundWindow failed\n");
+        OutputDebugStringA("[!] GetGameWindow failed\n");
         return;
     }
 
@@ -190,4 +200,20 @@ void gui::DrawCursor(HDC hdc) {
         OutputDebugStringA("[*] Drew crosshair via fallback window!\n");
     }
     PollMouseAndFeed(pt);
+}
+
+// Per-frame callback
+void gui::Update() {
+    if(GetAsyncKeyState(VK_HOME) & 1) { 
+        gui::ToggleMenu();
+    }
+    if(GetAsyncKeyState(VK_END) & 1) {
+        shouldExit = true;
+        actions::ResetAllEffects(); // Clean up any active effects before exiting
+    }
+}
+
+// Poll exit request state
+bool gui::ExitRequested() {
+    return shouldExit;
 }

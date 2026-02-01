@@ -10,6 +10,7 @@
 
 namespace actions {
     void RepairCar();
+    void DestroyCar();
     void EnableInvincibility();
     void DisableInvincibility();
 
@@ -31,6 +32,8 @@ namespace actions {
     void SpawnLightningSound();
     void SpawnCheckpointSound();
     void SpawnLittleTimeRemainingSound();
+
+    void SetGameOverFlag(bool set);
 
     void ResetAllEffects();
 

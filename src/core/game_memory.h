@@ -20,6 +20,7 @@ namespace gameMemory {
     inline constexpr uintptr_t ADDR_LIGHTNING_SOUND_FLAG                = 0x005165a8;
     inline constexpr uintptr_t ADDR_TRIGGER_CHECKPOINT_SOUND            = 0x0051659c;
     inline constexpr uintptr_t ADDR_TRIGGER_LITTLE_TIME_REMAINING_SOUND = 0x005165a0;
+    inline constexpr uintptr_t ADDR_GAME_OVER_FLAG                      = 0x0070f49c;
 
     // Damage addresses
     inline std::unordered_map<std::string, uintptr_t> ADDR_DAMAGE = {
