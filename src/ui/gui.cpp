@@ -83,7 +83,7 @@ void gui::Init() {
 
 void gui::InitMenu() {
     if(menuRef.lock()) return;
-    auto menu = BuildDebugMenu();
+    auto menu = debug_menu::BuildDebugMenu();
     menuRef = menu;
 }
 

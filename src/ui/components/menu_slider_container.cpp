@@ -4,7 +4,7 @@
 #include "Slider.h"
 #include "FlexLayout.h"
 
-std::shared_ptr<Container> BuildMenuSliderContainer(
+std::shared_ptr<Container> debug_menu::components::BuildMenuSliderContainer(
     const std::wstring& label,
     float min, float max, float step, float defaultValue,
     std::function<void(float)> onChange,
